@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seller Dashboard - Carbon Credit Exchange</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="nav-brand">
+        <span>🌿</span>
+        <span>Seller Dashboard</span>
+      </div>
+      <a href="index.html" class="logout-btn">Logout</a>
+    </nav>
+
+    <div class="dashboard-content">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Carbon Credit Balance</h3>
+            <p id="sellerCredits">150</p>
+          </div>
+          <div class="stat-icon" style="background: #d1fae5; color: #059669">
+            🌿
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Active Listings</h3>
+            <p id="activeListings">2</p>
+          </div>
+          <div class="stat-icon" style="background: #dbeafe; color: #2563eb">
+            📈
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Pending Submissions</h3>
+            <p id="pendingSubmissions">0</p>
+          </div>
+          <div class="stat-icon" style="background: #e9d5ff; color: #9333ea">
+            ⏳
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Submit New Credits</h2>
+        <form id="submitForm">
+          <div class="form-group">
+            <label class="form-label">Project Type</label>
+            <select class="form-select" id="projectType">
+              <option>Solar Energy</option>
+              <option>Wind Energy</option>
+              <option>Reforestation</option>
+              <option>Ocean Conservation</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Number of Credits</label>
+            <input
+              type="number"
+              class="form-input"
+              id="creditAmount"
+              placeholder="Enter credits"
+            />
+          </div>
+
+          <div class="form-group">
+            <div
+              class="file-upload"
+              onclick="document.getElementById('fileInput').click()"
+            >
+              <div class="file-upload-icon">📤</div>
+              <p style="font-weight: 600; color: #374151; margin-bottom: 5px">
+                Upload geotagged photos and documents
+              </p>
+              <p style="font-size: 0.9em; color: #6b7280">
+                PNG, JPG, PDF up to 10MB
+              </p>
+              <p
+                id="fileCount"
+                style="color: #059669; font-weight: 600; margin-top: 15px"
+              ></p>
+            </div>
+            <input
+              type="file"
+              id="fileInput"
+              multiple
+              accept=".jpg,.jpeg,.png,.pdf"
+              style="display: none"
+              onchange="updateFileCount()"
+            />
+          </div>
+
+          <button type="submit" class="submit-btn">
+            Submit for Verification
+          </button>
+        </form>
+      </div>
+
+      <div class="section" id="submissionsSection" style="display: none">
+        <h2 class="section-title">Submission History</h2>
+        <div id="submissionsList"></div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Current Listings</h2>
+        <div id="sellerListings">
+          <div class="listing-item">
+            <div class="listing-header">
+              <div>
+                <div class="listing-title">50 Credits - Solar</div>
+                <p style="color: #6b7280; margin-top: 5px">
+                  Price: $25 per credit
+                </p>
+              </div>
+              <span class="status-badge status-active">✓ Active</span>
+            </div>
+          </div>
+
+          <div class="listing-item">
+            <div class="listing-header">
+              <div>
+                <div class="listing-title">100 Credits - Wind Energy</div>
+                <p style="color: #6b7280; margin-top: 5px">
+                  Price: $27 per credit
+                </p>
+              </div>
+              <span class="status-badge status-pending">⏳ Pending</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="notification" class="notification hidden">
+      <span id="notificationIcon" style="font-size: 1.5em"></span>
+      <span id="notificationMessage"></span>
+    </div>
+
+    <script src="seller.js"></script>
+  </body>
+</html>
