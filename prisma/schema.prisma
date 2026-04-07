@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  PROJECT_OWNER
+  VERIFIER
+  BUYER
+}
+
+enum Registry {
+  CCTS
+  VERRA
+  GOLD_STANDARD
+}
+
+enum ProjectStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+enum BatchStatus {
+  ACTIVE
+  TRANSFERRED
+  LISTED
+  RETIRED
+  CANCELLED
+}
+
+enum ListingStatus {
+  ACTIVE
+  FULFILLED
+  CANCELLED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum Currency {
+  INR
+  USD
+}
+
+enum AuditAction {
+  LOGIN
+  PROJECT_CREATED
+  PROJECT_SUBMITTED
+  PROJECT_APPROVED
+  PROJECT_REJECTED
+  REPORT_CREATED
+  REPORT_SUBMITTED
+  REPORT_VERIFIED
+  REPORT_REJECTED
+  CREDITS_ISSUED
+  CREDIT_TRANSFERRED
+  CREDIT_RETIRED
+  CREDIT_CANCELLED
+  USER_CREATED
+  ANOMALY_FLAGGED
+  ANOMALY_RESOLVED
+  LISTING_CREATED
+  LISTING_CANCELLED
+  PURCHASE_REQUESTED
+  PURCHASE_APPROVED
+  PURCHASE_REJECTED
+}
+
+enum AnomalyType {
+  DUPLICATE_PROJECT_NAME
+  HIGH_CREDIT_ISSUANCE
+  MISSING_MRV_DATA
+  REPEATED_SUBMISSIONS
+  PERIOD_REUSE
+  RAPID_TRANSFER
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(PROJECT_OWNER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects          Project[]
+  monitoringReports MonitoringReport[] @relation("VerifiedBy")
+  issuedBatches     CreditBatch[]      @relation("IssuedBatches")
+  ownedBatches      CreditBatch[]      @relation("OwnedBatches")
+  transfersFrom     Transaction[]      @relation("TransferFrom")
+  transfersTo       Transaction[]      @relation("TransferTo")
+  retirements       Retirement[]
+  auditLogs         AuditLog[]
+  resolvedAnomalies AnomalyFlag[]
+  creditListings    MarketListing[]
+  purchaseRequests  PurchaseRequest[]
+
+  @@map("users")
+}
+
+model Project {
+  id               String        @id @default(cuid())
+  name             String
+  description      String
+  methodology      String
+  location         String
+  status           ProjectStatus @default(DRAFT)
+  registry         String
+  ownerId          String
+  startDate        DateTime
+  endDate          DateTime
+  estCredits       Int
+  mrvReportUrl     String?
+  submissionCount  Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  owner             User               @relation(fields: [ownerId], references: [id])
+  monitoringReports MonitoringReport[]
+  creditBatches     CreditBatch[]
+
+  @@map("projects")
+}
+
+model MonitoringReport {
+  id               String       @id @default(cuid())
+  projectId        String
+  periodStart      DateTime
+  periodEnd        DateTime
+  emissionsReduced Decimal
+  reportFile       String?
+  supportingFiles  Json         @default("[]")
+  status           ReportStatus @default(DRAFT)
+  verifierId       String?
+  verifiedAt       DateTime?
+  notes            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  project     Project      @relation(fields: [projectId], references: [id])
+  verifier    User?        @relation("VerifiedBy", fields: [verifierId], references: [id])
+  creditBatch CreditBatch?
+
+  @@unique([projectId, periodStart, periodEnd])
+  @@map("monitoring_reports")
+}
+
+model CreditBatch {
+  id                  String      @id @default(cuid())
+  projectId           String
+  monitoringReportId  String?     @unique
+  ownerId             String
+  status              BatchStatus @default(ACTIVE)
+  vintageYear         Int
+  serialBlockStart    String
+  serialBlockEnd      String
+  quantity            Int
+  issuedById          String?
+  issuedAt            DateTime    @default(now())
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  project          Project           @relation(fields: [projectId], references: [id])
+  monitoringReport MonitoringReport? @relation(fields: [monitoringReportId], references: [id])
+  issuedBy         User?             @relation("IssuedBatches", fields: [issuedById], references: [id])
+  owner            User              @relation("OwnedBatches", fields: [ownerId], references: [id])
+  transactions     Transaction[]
+  marketListings   MarketListing[]
+  retirements      Retirement[]
+
+  @@map("credit_batches")
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  batchId      String
+  fromUserId   String
+  toUserId     String
+  amount       Int
+  currency     Currency @default(USD)
+  priceAmount  Int      @default(0)
+  transferDate DateTime @default(now())
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  batch  CreditBatch @relation(fields: [batchId], references: [id])
+  from   User        @relation("TransferFrom", fields: [fromUserId], references: [id])
+  to     User        @relation("TransferTo", fields: [toUserId], references: [id])
+
+  @@map("transactions")
+}
+
+model Retirement {
+  id                String   @id @default(cuid())
+  batchId           String
+  retiredById       String
+  quantity          Int
+  retirementDate    DateTime @default(now())
+  reason            String
+  beneficiaryName   String   @default("")
+  certificateNumber String   @unique
+  createdAt         DateTime @default(now())
+
+  batch     CreditBatch @relation(fields: [batchId], references: [id])
+  retiredBy User        @relation(fields: [retiredById], references: [id])
+
+  @@map("retirements")
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  action     AuditAction
+  entityType String
+  entityId   String
+  userId     String
+  details    Json        @default("{}")
+  ipAddress  String?
+  createdAt  DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model AnomalyFlag {
+  id           String      @id @default(cuid())
+  type         AnomalyType
+  severity     Severity
+  description  String
+  entityType   String
+  entityId     String
+  resolved     Boolean     @default(false)
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime    @default(now())
+
+  resolvedBy User? @relation(fields: [resolvedById], references: [id])
+
+  @@map("anomaly_flags")
+}
+
+model MarketListing {
+  id             String        @id @default(cuid())
+  batchId        String
+  sellerId       String
+  title          String
+  description    String?
+  pricePerTon    Int
+  currency       Currency      @default(USD)
+  minPurchaseQty Int
+  status         ListingStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  batch            CreditBatch       @relation(fields: [batchId], references: [id])
+  seller           User              @relation(fields: [sellerId], references: [id])
+  purchaseRequests PurchaseRequest[]
+
+  @@map("market_listings")
+}
+
+model PurchaseRequest {
+  id          String        @id @default(cuid())
+  listingId   String
+  buyerId     String
+  quantity    Int
+  status      RequestStatus @default(PENDING)
+  notes       String?
+  reviewNotes String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  listing MarketListing @relation(fields: [listingId], references: [id])
+  buyer   User          @relation(fields: [buyerId], references: [id])
+
+  @@map("purchase_requests")
+}
